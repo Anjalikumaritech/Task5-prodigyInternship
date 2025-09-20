@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MiniSocial — Client-side Social App</title>
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#06b6d4; --glass: rgba(255,255,255,0.03);
+    --success:#10b981;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:linear-gradient(180deg,#071023 0%, #0f1730 100%); color:#e6eef6;
+    min-height:100vh; display:flex; align-items:flex-start; justify-content:center;
+    padding:24px;
+  }
+  .app{
+    width:1100px; max-width:98vw; display:grid; grid-template-columns:300px 1fr 320px; gap:20px;
+  }
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:16px;}
+  .card{background:var(--card); padding:12px; border-radius:12px; box-shadow: 0 6px 18px rgba(2,6,23,0.6);}
+  header h1{margin:0;font-size:20px;}
+  .profile-compact{display:flex; gap:12px; align-items:center}
+  .avatar{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#1f2937,#111827); display:flex;align-items:center;justify-content:center; font-weight:700; color: #dbeafe;}
+  .muted{color:var(--muted); font-size:13px}
+  .btn{display:inline-flex; align-items:center; gap:8px; border:0; padding:8px 12px; border-radius:10px; cursor:pointer; background:var(--accent); color:#02303a; font-weight:600;}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.04); color:var(--muted)}
+  .small{padding:6px 8px; font-size:13px; border-radius:8px}
+  .feed{display:flex; flex-direction:column; gap:12px; padding-bottom:40px}
+  .post{background:var(--glass); padding:12px; border-radius:12px}
+  .post .meta{display:flex; align-items:center; gap:12px}
+  .post .author{font-weight:700}
+  .post .time{color:var(--muted); font-size:12px}
+  .post .content{margin:10px 0; white-space:pre-wrap}
+  .media-preview{max-width:100%; border-radius:10px; display:block; margin-top:8px}
+  .controls{display:flex; gap:8px; align-items:center; margin-top:8px}
+  .like-btn{background:transparent; border:0; color:var(--muted); cursor:pointer; font-weight:600}
+  .liked{color:var(--accent)}
+  .comment-list{margin-top:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.03)}
+  .comment{font-size:14px; margin:6px 0}
+  textarea{width:100%; min-height:80px; background:transparent; color:inherit; border:1px solid rgba(255,255,255,0.04); padding:10px; border-radius:8px}
+  input[type="file"]{display:block}
+  .sidebar-section{margin-bottom:14px}
+  .user-switch{width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,0.02); color:inherit; border:1px dashed rgba(255,255,255,0.02)}
+  .tag{display:inline-block; padding:6px 8px; border-radius:999px; background:rgba(255,255,255,0.02); color:var(--muted); font-weight:600; font-size:13px; margin-right:6px; cursor:pointer}
+  .top-tags{display:flex; flex-wrap:wrap; gap:8px}
+  .nav{display:flex; gap:8px; margin-bottom:12px}
+  .nav button{background:transparent; color:var(--muted); border:0; padding:8px 10px; border-radius:8px; cursor:pointer}
+  .nav button.active{color:var(--accent); background:rgba(6,182,212,0.06)}
+  .notif-badge{background:var(--accent); color:#022; padding:4px 8px; border-radius:999px; font-weight:700; font-size:12px}
+  .follow-btn{padding:6px 10px; border-radius:8px; cursor:pointer; border:0}
+  .followed{background:rgba(16,185,129,0.12); color:var(--success)}
+  .not-followed{background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted)}
+  .media-grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin-top:8px}
+  .small-muted{font-size:12px;color:var(--muted)}
+  .search-input{width:100%; padding:8px; border-radius:8px; background:transparent; border:1px solid rgba(255,255,255,0.03); color:inherit}
+  .empty{color:var(--muted); padding:16px; text-align:center}
+  footer{color:var(--muted); font-size:13px; text-align:center; margin-top:12px}
+  @media (max-width: 980px){ .app{grid-template-columns:1fr; padding-bottom:40px} .panel{margin-bottom:12px} }
+</style>
+</head>
+<body>
+<div class="app" role="application" aria-label="MiniSocial client">
+  <!-- LEFT SIDEBAR: Profile, controls -->
+  <div class="panel card" id="leftPanel">
+    <header>
+      <h1>MiniSocial</h1>
+      <div class="muted">Client-only demo • Local data</div>
+    </header>
+
+    <div style="height:12px"></div>
+
+    <section class="sidebar-section">
+      <div class="profile-compact" id="currentProfileDisplay">
+        <!-- Filled by JS -->
+      </div>
+      <div style="height:8px"></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="editProfileBtn">Edit Profile</button>
+        <button class="ghost small" id="newProfileBtn">New</button>
+      </div>
+    </section>
+
+    <section class="sidebar-section">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="small-muted">Switch user</div>
+        <div id="notifCountWrap"></div>
+      </div>
+      <select id="userSwitch" class="user-switch" aria-label="Switch active profile"></select>
+    </section>
+
+    <section class="sidebar-section">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="small-muted">Create Post</div>
+        <div class="small-muted" id="charCount">0 / 500</div>
+      </div>
+      <textarea id="postText" placeholder="What's happening? Use #tags to categorize..."></textarea>
+      <div style="display:flex; gap:8px; margin-top:8px; align-items:center">
+        <label class="ghost small" style="cursor:pointer">
+          Upload
+          <input type="file" id="mediaInput" accept="image/*,video/*" style="display:none" multiple>
+        </label>
+        <button class="btn" id="publishBtn">Publish</button>
+        <div class="small-muted" id="attachedCount">No media</div>
+      </div>
+      <div id="mediaPreview" class="media-grid"></div>
+    </section>
+
+    <section class="sidebar-section">
+      <div class="small-muted">Explore / Trending</div>
+      <div style="height:8px"></div>
+      <div class="top-tags" id="topTags"></div>
+      <div style="height:8px"></div>
+      <input id="searchInput" class="search-input" placeholder="Search text or #tags" />
+    </section>
+
+    <footer>Built with ❤️ — client-side only</footer>
+  </div>
+
+  <!-- CENTER: Feed -->
+  <main class="panel card" id="centerPanel">
+    <nav class="nav" aria-label="Main navigation">
+      <button id="navFeed" class="active">Feed</button>
+      <button id="navExplore">Explore</button>
+      <button id="navNotifications">Notifications <span id="navNotifBadge" style="margin-left:8px;"></span></button>
+      <div style="flex:1"></div>
+      <div class="small-muted" id="currentTime"></div>
+    </nav>
+
+    <div id="feedArea" class="feed"></div>
+    <div id="emptyFeed" class="empty" style="display:none">No posts yet — create one!</div>
+  </main>
+
+  <!-- RIGHT: People, trending, notifications -->
+  <aside class="panel card" id="rightPanel">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="small-muted">People</div>
+      <button id="refreshBtn" class="ghost small">Refresh</button>
+    </div>
+    <div style="height:8px"></div>
+    <div id="peopleList"></div>
+
+    <div style="height:14px"></div>
+
+    <div class="small-muted">Notifications</div>
+    <div id="notificationsList" style="margin-top:8px;"></div>
+  </aside>
+</div>
+
+<!-- Modals (hidden) -->
+<div id="modalRoot" aria-hidden="true" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:60;">
+  <div id="modalBackdrop" style="position:absolute; inset:0; background:rgba(2,6,23,0.7)"></div>
+  <div id="modalContent" style="position:relative; width:720px; max-width:95vw; background:var(--card); padding:18px; border-radius:12px; z-index:61;">
+    <!-- filled dynamically -->
+  </div>
+</div>
+
+<script>
+/*
+ MiniSocial - Single-file front-end demo
+ - Uses localStorage for persistence
+ - Supports multiple profiles, switching, creating posts with media (base64), likes, comments, follows, notifications
+*/
+
+// -------------------- Utilities --------------------
+const uid = (n=8)=> Math.random().toString(36).slice(2,2+n);
+const nowISO = ()=> new Date().toISOString();
+const timeAgo = iso => {
+  if(!iso) return '';
+  const d = new Date(iso); const diff = Date.now()-d.getTime();
+  const s = Math.floor(diff/1000), m=Math.floor(s/60), h=Math.floor(m/60), days=Math.floor(h/24);
+  if(s<60) return s+'s';
+  if(m<60) return m+'m';
+  if(h<24) return h+'h';
+  return days+'d';
+}
+const saveState = ()=> localStorage.setItem('mini_state', JSON.stringify(state));
+const loadState = ()=>{
+  const raw = localStorage.getItem('mini_state');
+  return raw ? JSON.parse(raw) : null;
+}
+const ensure = (k,v)=> { if(state[k]===undefined) state[k]=v; }
+
+// -------------------- Initial State --------------------
+let state = loadState() || {
+  users: {}, // id -> {id, name, avatar(base64 or null), bio, createdAt}
+  posts: [], // {id, authorId, text, tags[], media: [{type:'image'|'video', data:base64, name}], likes: Set(userId), comments: [{id, authorId, text, createdAt}], createdAt}
+  follows: {}, // userId -> Set of followed userIds
+  notifications: [], // {id, toUserId, fromUserId, type: 'like'|'comment'|'follow', postId, text, createdAt, read:false}
+  currentUserId: null
+};
+ensure('users', {});
+ensure('posts', []);
+ensure('follows', {});
+ensure('notifications', []);
+if(!state.currentUserId){
+  // create a friendly starter user
+  const starter = {id: 'u_demo', name:'Alex', avatar:null, bio:'Hello! I am Alex — try switching/creating profiles.' , createdAt: nowISO()};
+  state.users[starter.id] = starter;
+  state.currentUserId = starter.id;
+  saveState();
+}
+
+// Helper to convert likes/sets for storage handling
+function setAdd(obj, key, value){
+  obj[key] = obj[key] || [];
+  if(!obj[key].includes(value)) obj[key].push(value);
+}
+function setRemove(obj,key,value){
+  if(!obj[key]) return;
+  obj[key] = obj[key].filter(x=>x!==value);
+}
+
+// -------------------- DOM References --------------------
+const userSwitch = document.getElementById('userSwitch');
+const currentProfileDisplay = document.getElementById('currentProfileDisplay');
+const postText = document.getElementById('postText');
+const mediaInput = document.getElementById('mediaInput');
+const mediaPreview = document.getElementById('mediaPreview');
+const publishBtn = document.getElementById('publishBtn');
+const attachedCount = document.getElementById('attachedCount');
+const feedArea = document.getElementById('feedArea');
+const emptyFeed = document.getElementById('emptyFeed');
+const topTagsEl = document.getElementById('topTags');
+const peopleList = document.getElementById('peopleList');
+const notificationsList = document.getElementById('notificationsList');
+const notifCountWrap = document.getElementById('notifCountWrap');
+const navFeed = document.getElementById('navFeed');
+const navExplore = document.getElementById('navExplore');
+const navNotifications = document.getElementById('navNotifications');
+const navNotifBadge = document.getElementById('navNotifBadge');
+const searchInput = document.getElementById('searchInput');
+const charCount = document.getElementById('charCount');
+const editProfileBtn = document.getElementById('editProfileBtn');
+const newProfileBtn = document.getElementById('newProfileBtn');
+const refreshBtn = document.getElementById('refreshBtn');
+const currentTimeEl = document.getElementById('currentTime');
+
+let attachedFiles = []; // [{name,type,dataUrl}]
+
+// -------------------- Rendering --------------------
+function render(){
+  renderCurrentProfile();
+  renderUserSwitch();
+  renderTopTags();
+  renderPeople();
+  renderFeed();
+  renderNotifications();
+  updateNotifBadge();
+  updateTime();
+}
+
+function renderCurrentProfile(){
+  const u = state.users[state.currentUserId];
+  currentProfileDisplay.innerHTML = '';
+  if(!u) return;
+  const av = document.createElement('div');
+  av.className = 'avatar';
+  if(u.avatar) av.style.backgroundImage = `url(${u.avatar})`, av.style.backgroundSize='cover', av.textContent='';
+  else av.textContent = (u.name||'U').slice(0,2).toUpperCase();
+  const info = document.createElement('div');
+  info.innerHTML = `<div style="font-weight:800">${escapeHtml(u.name)}</div><div class="muted" style="font-size:13px">${escapeHtml(u.bio || '')}</div>`;
+  currentProfileDisplay.appendChild(av);
+  currentProfileDisplay.appendChild(info);
+}
+
+function renderUserSwitch(){
+  userSwitch.innerHTML = '';
+  Object.values(state.users).forEach(u=>{
+    const opt = document.createElement('option');
+    opt.value = u.id;
+    opt.textContent = u.name + (u.id === state.currentUserId ? ' (active)' : '');
+    userSwitch.appendChild(opt);
+  });
+  userSwitch.value = state.currentUserId;
+}
+
+function buildPostCard(post){
+  const author = state.users[post.authorId] || {name:'Unknown'};
+  const own = state.currentUserId === post.authorId;
+  const el = document.createElement('div');
+  el.className = 'post card';
+  el.dataset.postId = post.id;
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.innerHTML = `
+    <div style="display:flex; gap:10px; align-items:center;">
+      <div class="avatar" style="width:44px;height:44px;border-radius:8px; background:${author.avatar? 'transparent':'linear-gradient(135deg,#1f2937,#111827)'}">
+        ${author.avatar? `<img src="${author.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:8px" />` : escapeHtml(author.name[0]||'').toUpperCase()}
+      </div>
+      <div>
+        <div class="author">${escapeHtml(author.name)}</div>
+        <div class="time small-muted">${timeAgo(post.createdAt)} • ${new Date(post.createdAt).toLocaleString()}</div>
+      </div>
+    </div>
+    <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+      ${ !own ? `<button class="follow-btn ${isFollowing(state.currentUserId, post.authorId) ? 'followed':'not-followed'} small" data-action="toggle-follow" data-target="${post.authorId}">${isFollowing(state.currentUserId, post.authorId) ? 'Following' : 'Follow'}</button>` : ''}
+      ${ own ? `<button class="ghost small" data-action="edit-post" data-target="${post.id}">Edit</button>` : '' }
+    </div>
+  `;
+
+  const content = document.createElement('div');
+  content.className = 'content';
+  content.innerHTML = linkifyAndTag(escapeHtml(post.text || ''));
+
+  el.appendChild(meta);
+  el.appendChild(content);
+
+  // media
+  if(post.media && post.media.length){
+    const mediaWrap = document.createElement('div');
+    mediaWrap.className = 'media-grid';
+    post.media.forEach(m=>{
+      if(m.type.startsWith('image')){
+        const img = document.createElement('img');
+        img.src = m.data;
+        img.className = 'media-preview';
+        img.alt = m.name || 'image';
+        mediaWrap.appendChild(img);
+      } else if(m.type.startsWith('video')){
+        const v = document.createElement('video');
+        v.controls = true;
+        v.src = m.data;
+        v.className = 'media-preview';
+        mediaWrap.appendChild(v);
+      }
+    });
+    el.appendChild(mediaWrap);
+  }
+
+  // tags
+  if(post.tags && post.tags.length){
+    const tagWrap = document.createElement('div');
+    tagWrap.style.marginTop='8px';
+    post.tags.forEach(t=>{
+      const tg = document.createElement('span');
+      tg.className='tag';
+      tg.textContent = '#'+t;
+      tg.onclick = ()=> { filterByTag(t); };
+      tagWrap.appendChild(tg);
+    });
+    el.appendChild(tagWrap);
+  }
+
+  // actions
+  const controls = document.createElement('div');
+  controls.className = 'controls';
+  const liked = (post.likes || []).includes(state.currentUserId);
+  const likeBtn = document.createElement('button');
+  likeBtn.className = 'like-btn';
+  likeBtn.innerHTML = `❤ ${post.likes ? post.likes.length : 0}`;
+  if(liked) likeBtn.classList.add('liked');
+  likeBtn.onclick = ()=> toggleLike(post.id);
+
+  const commentBtn = document.createElement('button');
+  commentBtn.className = 'ghost small';
+  commentBtn.textContent = 'Comment';
+  commentBtn.onclick = ()=> focusCommentBox(post.id);
+
+  controls.appendChild(likeBtn);
+  controls.appendChild(commentBtn);
+
+  el.appendChild(controls);
+
+  // comments
+  const cList = document.createElement('div');
+  cList.className = 'comment-list';
+  if(post.comments && post.comments.length){
+    post.comments.forEach(c=>{
+      const cauthor = state.users[c.authorId] || {name:'Unknown'};
+      const cm = document.createElement('div');
+      cm.className = 'comment';
+      cm.innerHTML = `<strong>${escapeHtml(cauthor.name)}</strong> <span class="small-muted">${timeAgo(c.createdAt)}</span><div>${escapeHtml(c.text)}</div>`;
+      cList.appendChild(cm);
+    });
+  }
+  // comment input
+  const commentInput = document.createElement('div');
+  commentInput.style.marginTop='8px';
+  commentInput.innerHTML = `<input placeholder="Write a comment..." style="width:70%;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03)" data-action="comment-input" data-target="${post.id}" />
+    <button class="btn small" data-action="post-comment" data-target="${post.id}">Reply</button>`;
+  cList.appendChild(commentInput);
+
+  el.appendChild(cList);
+
+  // attach event delegation hooks
+  el.querySelectorAll('[data-action]').forEach(btn=>{
+    const act = btn.dataset.action;
+    if(act === 'toggle-follow') btn.onclick = ()=> { toggleFollow(btn.dataset.target); render(); saveState(); };
+    if(act === 'edit-post') btn.onclick = ()=> { openEditPostModal(btn.dataset.target); };
+    if(act === 'post-comment') btn.onclick = ()=> {
+      const id = btn.dataset.target;
+      const input = el.querySelector(`[data-action="comment-input"][data-target="${id}"]`);
+      const text = input.value.trim();
+      if(text) { addComment(id, text); input.value=''; render(); saveState(); }
+    };
+  });
+
+  return el;
+}
+
+function renderFeed({search=null, tag=null}={}){
+
+  feedArea.innerHTML = '';
+  const posts = [...state.posts].sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+
+  let filtered = posts;
+  if(tag) filtered = filtered.filter(p=> p.tags && p.tags.includes(tag));
+  if(search){
+    const s = search.toLowerCase();
+    filtered = filtered.filter(p=> (p.text||'').toLowerCase().includes(s) || (p.tags||[]).some(t=>t.includes(s)));
+  }
+
+  if(!filtered.length){
+    emptyFeed.style.display = 'block';
+    feedArea.style.display = 'none';
+    return;
+  } else {
+    emptyFeed.style.display = 'none';
+    feedArea.style.display = 'flex';
+  }
+
+  filtered.forEach(p=>{
+    feedArea.appendChild(buildPostCard(p));
+  });
+}
+
+function renderTopTags(){
+  // compute tags scores by mentions and likes on posts with that tag
+  const tagMap = {};
+  state.posts.forEach(p=>{
+    (p.tags||[]).forEach(t=>{
+      tagMap[t] = tagMap[t] || {count:0, likes:0};
+      tagMap[t].count += 1;
+      tagMap[t].likes += (p.likes||[]).length || 0;
+    });
+  });
+  const tags = Object.keys(tagMap).map(k=> ({tag:k, ...tagMap[k]}));
+  tags.sort((a,b)=> (b.count*2 + b.likes) - (a.count*2 + a.likes));
+  topTagsEl.innerHTML = '';
+  tags.slice(0,18).forEach(t=>{
+    const btn = document.createElement('span');
+    btn.className = 'tag';
+    btn.textContent = '#'+t.tag;
+    btn.onclick = ()=> filterByTag(t.tag);
+    topTagsEl.appendChild(btn);
+  });
+}
+
+function renderPeople(){
+  peopleList.innerHTML = '';
+  const users = Object.values(state.users).sort((a,b)=> a.name.localeCompare(b.name));
+  users.forEach(u=>{
+    const wrap = document.createElement('div');
+    wrap.style.display='flex'; wrap.style.justifyContent='space-between'; wrap.style.alignItems='center'; wrap.style.padding='8px 0';
+    wrap.innerHTML = `<div style="display:flex;gap:10px;align-items:center">
+      <div class="avatar" style="width:44px;height:44px;border-radius:8px">${u.avatar? `<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:8px" />` : escapeHtml((u.name||'').slice(0,1).toUpperCase())}</div>
+      <div>
+        <div style="font-weight:700">${escapeHtml(u.name)}</div>
+        <div class="small-muted">${escapeHtml(u.bio||'')}</div>
+      </div>
+    </div>`;
+    const btn = document.createElement('button');
+    btn.className = 'follow-btn small ' + (isFollowing(state.currentUserId, u.id) ? 'followed':'not-followed');
+    btn.textContent = isFollowing(state.currentUserId, u.id) ? 'Following' : 'Follow';
+    btn.onclick = ()=> { toggleFollow(u.id); render(); saveState(); };
+    wrap.appendChild(btn);
+    peopleList.appendChild(wrap);
+  });
+}
+
+function renderNotifications(){
+  notificationsList.innerHTML = '';
+  const nots = state.notifications.filter(n=> n.toUserId === state.currentUserId).sort((a,b)=> new Date(b.createdAt)-new Date(a.createdAt));
+  if(!nots.length) notificationsList.innerHTML = '<div class="small-muted">No notifications</div>';
+  nots.forEach(n=>{
+    const from = state.users[n.fromUserId] || {name:'Someone'};
+    const li = document.createElement('div');
+    li.style.padding='8px'; li.style.borderBottom='1px dashed rgba(255,255,255,0.02)';
+    li.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center">
+      <div><strong>${escapeHtml(from.name)}</strong> <span class="small-muted">${n.type}</span></div>
+      <div class="small-muted">${timeAgo(n.createdAt)}</div>
+    </div>
+    <div class="small-muted">${escapeHtml(n.text||'')}</div>`;
+    li.onclick = ()=> { n.read=true; saveState(); renderNotifications(); updateNotifBadge(); };
+    notificationsList.appendChild(li);
+  });
+}
+
+function updateNotifBadge(){
+  const unread = (state.notifications.filter(n=> n.toUserId===state.currentUserId && !n.read)).length;
+  notifCountWrap.innerHTML = unread ? `<span class="notif-badge">${unread}</span>` : '';
+  navNotifBadge.textContent = unread ? ` (${unread})` : '';
+}
+
+function updateTime(){
+  currentTimeEl.textContent = new Date().toLocaleString();
+}
+setInterval(updateTime,60000);
+
+// -------------------- Actions --------------------
+function escapeHtml(s){ return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+function linkifyAndTag(text){
+  if(!text) return '';
+  // simple: turn #tags into clickable span and URLs into anchor
+  const urlRe = /(https?:\/\/[^\s]+)/g;
+  let out = text.replace(urlRe, '<a href="$1" target="_blank" rel="noreferrer">$1</a>');
+  const tagRe = /#([a-zA-Z0-9_-]+)/g;
+  out = out.replace(tagRe, '<span class="tag" onclick="(function(t){filterByTag(t)})(\'$1\')">#$1</span>');
+  return out;
+}
+
+function parseTags(text){
+  const m = text.match(/#([a-zA-Z0-9_-]+)/g) || [];
+  return [...new Set(m.map(x=> x.slice(1).toLowerCase()))];
+}
+
+function publishPost(){
+  const text = postText.value.trim();
+  if(text.length === 0 && attachedFiles.length === 0){
+    alert('Write something or attach media.');
+    return;
+  }
+  const post = {
+    id: 'p_' + uid(9),
+    authorId: state.currentUserId,
+    text,
+    tags: parseTags(text),
+    media: attachedFiles.map(f=> ({type:f.type, data:f.data, name:f.name})),
+    likes: [],
+    comments: [],
+    createdAt: nowISO()
+  };
+  state.posts.push(post);
+  // clear composer
+  postText.value = '';
+  attachedFiles = [];
+  mediaPreview.innerHTML = '';
+  attachedCount.textContent = 'No media';
+  charCount.textContent = '0 / 500';
+  saveState();
+  render();
+}
+
+function toggleLike(postId){
+  const post = state.posts.find(p=>p.id===postId);
+  if(!post) return;
+  if(!post.likes) post.likes = [];
+  if(post.likes.includes(state.currentUserId)){
+    post.likes = post.likes.filter(x=>x!==state.currentUserId);
+  } else {
+    post.likes.push(state.currentUserId);
+    // create notification to post author (if not liking own post)
+    if(post.authorId !== state.currentUserId){
+      state.notifications.push({
+        id: 'n_'+uid(8), toUserId: post.authorId, fromUserId: state.currentUserId, type:'like',
+        postId: post.id, text: `${state.users[state.currentUserId].name} liked your post`, createdAt: nowISO(), read:false
+      });
+    }
+  }
+  saveState();
+  render();
+}
+
+function isFollowing(whoId, targetId){
+  if(!state.follows[whoId]) return false;
+  return state.follows[whoId].includes(targetId);
+}
+function toggleFollow(targetId){
+  if(targetId === state.currentUserId) return;
+  state.follows[state.currentUserId] = state.follows[state.currentUserId] || [];
+  if(isFollowing(state.currentUserId, targetId)) {
+    state.follows[state.currentUserId] = state.follows[state.currentUserId].filter(x=>x!==targetId);
+  } else {
+    state.follows[state.currentUserId].push(targetId);
+    // notify target
+    state.notifications.push({
+      id: 'n_'+uid(8), toUserId: targetId, fromUserId: state.currentUserId, type:'follow',
+      text: `${state.users[state.currentUserId].name} started following you`, createdAt: nowISO(), read:false
+    });
+  }
+  saveState();
+}
+
+function addComment(postId, text){
+  const p = state.posts.find(x=>x.id===postId);
+  if(!p) return;
+  const c = {id:'c_'+uid(6), authorId: state.currentUserId, text, createdAt: nowISO()};
+  p.comments = p.comments || [];
+  p.comments.push(c);
+  if(p.authorId !== state.currentUserId){
+    state.notifications.push({
+      id: 'n_'+uid(8), toUserId: p.authorId, fromUserId: state.currentUserId, type:'comment',
+      postId: p.id, text: `${state.users[state.currentUserId].name} commented: "${text.slice(0,80)}"`, createdAt: nowISO(), read:false
+    });
+  }
+  saveState();
+  render();
+}
+
+function focusCommentBox(postId){
+  const el = document.querySelector(`[data-action="comment-input"][data-target="${postId}"]`);
+  if(el) el.focus();
+}
+
+function filterByTag(tag){
+  navExplore.classList.remove('active');
+  navFeed.classList.add('active');
+  navNotifications.classList.remove('active');
+  renderFeed({tag});
+}
+
+function openEditPostModal(postId){
+  const p = state.posts.find(x=>x.id===postId);
+  if(!p) return;
+  openModal(`<h2>Edit post</h2>
+    <textarea id="editPostText">${escapeHtml(p.text)}</textarea>
+    <div style="height:8px"></div>
+    <div style="display:flex;gap:8px"><button id="saveEdit" class="btn">Save</button><button id="cancelEdit" class="ghost small">Cancel</button></div>`);
+  document.getElementById('saveEdit').onclick = ()=>{
+    const t = document.getElementById('editPostText').value.trim();
+    p.text = t; p.tags = parseTags(t); p.createdAt = p.createdAt; saveState(); closeModal(); render();
+  };
+  document.getElementById('cancelEdit').onclick = ()=> closeModal();
+}
+
+// -------------------- Modal helpers --------------------
+const modalRoot = document.getElementById('modalRoot');
+const modalContent = document.getElementById('modalContent');
+function openModal(html){
+  modalContent.innerHTML = html;
+  modalRoot.style.display = 'flex';
+  modalRoot.setAttribute('aria-hidden','false');
+}
+function closeModal(){ modalRoot.style.display='none'; modalRoot.setAttribute('aria-hidden','true'); }
+
+// -------------------- Profile creation/editing --------------------
+function openProfileModal(editId=null){
+  const u = editId ? state.users[editId] : null;
+  openModal(`
+    <h2>${u ? 'Edit profile' : 'Create profile'}</h2>
+    <div style="display:flex;gap:12px;align-items:center">
+      <div style="width:76px;height:76px" id="modalAvatarWrap">${u && u.avatar ? `<img src="${u.avatar}" style="width:76px;height:76px;border-radius:8px;object-fit:cover">` : '<div class="avatar" style="width:76px;height:76px;border-radius:8px">'+ (u?escapeHtml(u.name[0]||'U'):'U') +'</div>'}</div>
+      <div style="flex:1">
+        <input id="profileName" placeholder="Name" style="width:100%;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03)" value="${u?escapeHtml(u.name):''}" />
+        <div style="height:8px"></div>
+        <input id="profileBio" placeholder="Short bio" style="width:100%;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03)" value="${u?escapeHtml(u.bio):''}" />
+        <div style="height:8px"></div>
+        <label class="ghost small" style="cursor:pointer">Upload avatar <input type="file" id="avatarUpload" accept="image/*" style="display:none"></label>
+      </div>
+    </div>
+    <div style="height:12px"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end"><button id="saveProfile" class="btn">Save</button><button id="cancelProfile" class="ghost small">Cancel</button></div>
+  `);
+  const avatarUpload = modalContent.querySelector('#avatarUpload');
+  let avatarData = u ? u.avatar : null;
+  avatarUpload.onchange = e=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      avatarData = ev.target.result;
+      modalContent.querySelector('#modalAvatarWrap').innerHTML = `<img src="${avatarData}" style="width:76px;height:76px;border-radius:8px;object-fit:cover">`;
+    };
+    reader.readAsDataURL(f);
+  };
+  modalContent.querySelector('#saveProfile').onclick = ()=>{
+    const name = modalContent.querySelector('#profileName').value.trim() || 'Unnamed';
+    const bio = modalContent.querySelector('#profileBio').value.trim() || '';
+    if(u){
+      u.name = name; u.bio = bio; if(avatarData) u.avatar = avatarData;
+    } else {
+      const id = 'u_'+uid(6);
+      state.users[id] = {id, name, bio, avatar: avatarData, createdAt: nowISO()};
+      // auto-switch to new user
+      state.currentUserId = id;
+    }
+    saveState();
+    closeModal();
+    render();
+  };
+  modalContent.querySelector('#cancelProfile').onclick = ()=> closeModal();
+}
+
+editProfileBtn.onclick = ()=> openProfileModal(state.currentUserId);
+newProfileBtn.onclick = ()=> openProfileModal(null);
+
+// -------------------- Media upload handling --------------------
+mediaInput.onchange = async function(e){
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  for(const f of files){
+    const reader = new FileReader();
+    await new Promise(res=>{
+      reader.onload = ev=>{
+        attachedFiles.push({name:f.name, type:f.type, data:ev.target.result});
+        res();
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+  renderAttached();
+};
+
+function renderAttached(){
+  mediaPreview.innerHTML = '';
+  attachedFiles.forEach((f, idx)=>{
+    if(f.type.startsWith('image')){
+      const img = document.createElement('img'); img.src = f.data; img.className='media-preview';
+      mediaPreview.appendChild(img);
+    } else if(f.type.startsWith('video')){
+      const v = document.createElement('video'); v.src = f.data; v.controls=true; v.className='media-preview';
+      mediaPreview.appendChild(v);
+    }
+    const rm = document.createElement('button'); rm.className='ghost small'; rm.textContent='Remove'; rm.onclick = ()=> { attachedFiles.splice(idx,1); renderAttached(); };
+    mediaPreview.appendChild(rm);
+  });
+  attachedCount.textContent = attachedFiles.length ? `${attachedFiles.length} attached` : 'No media';
+}
+
+// -------------------- Search & nav --------------------
+searchInput.oninput = (e)=> {
+  const q = e.target.value.trim();
+  renderFeed({search:q || null});
+};
+
+navFeed.onclick = ()=> { navFeed.classList.add('active'); navExplore.classList.remove('active'); navNotifications.classList.remove('active'); renderFeed(); };
+navExplore.onclick = ()=> { navExplore.classList.add('active'); navFeed.classList.remove('active'); navNotifications.classList.remove('active'); renderExplore(); };
+navNotifications.onclick = ()=> { navNotifications.classList.add('active'); navExplore.classList.remove('active'); navFeed.classList.remove('active'); renderNotifications(); };
+
+// -------------------- Explore view --------------------
+function renderExplore(){
+  // show trending tags and top posts
+  feedArea.innerHTML = '';
+  emptyFeed.style.display='none'; feedArea.style.display='flex';
+  const h = document.createElement('div'); h.className='small-muted'; h.style.marginBottom='8px'; h.textContent='Trending tags';
+  feedArea.appendChild(h);
+  const tagsWrap = document.createElement('div'); tagsWrap.className='top-tags'; tagsWrap.style.marginBottom='12px';
+  Object.keys(state.users); // trigger compute
+  const tagMap = {};
+  state.posts.forEach(p=> (p.tags||[]).forEach(t=>{ tagMap[t] = tagMap[t] || 0; tagMap[t] += 1 + ((p.likes||[]).length || 0); }));
+  const tags = Object.keys(tagMap).map(t=> ({tag:t,score:tagMap[t]})).sort((a,b)=>b.score-a.score);
+  tags.slice(0,20).forEach(t=>{
+    const el = document.createElement('span'); el.className='tag'; el.textContent='#'+t.tag; el.onclick=()=> filterByTag(t.tag);
+    tagsWrap.appendChild(el);
+  });
+  feedArea.appendChild(tagsWrap);
+
+  const h2 = document.createElement('div'); h2.className='small-muted'; h2.style.marginTop='12px'; h2.textContent='Top posts';
+  feedArea.appendChild(h2);
+
+  const posts = [...state.posts].sort((a,b)=> {
+    // rank by likes * 2 + comments *1 + recency
+    const scoreA = (a.likes || []).length*2 + (a.comments||[]).length;
+    const scoreB = (b.likes || []).length*2 + (b.comments||[]).length;
+    if(scoreB !== scoreA) return scoreB-scoreA;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+  posts.slice(0,20).forEach(p=> feedArea.appendChild(buildPostCard(p)));
+}
+
+// -------------------- Notifications helpers --------------------
+function renderNotifications(){ /* already defined earlier but called when switching nav */ renderNotificationsList && renderNotificationsList(); }
+function renderNotificationsList(){
+  renderNotifications();
+}
+
+// -------------------- Misc controls --------------------
+publishBtn.onclick = publishPost;
+document.getElementById('userSwitch').onchange = function(e){
+  state.currentUserId = e.target.value;
+  saveState(); render();
+};
+document.getElementById('searchInput').addEventListener('keydown', e=> {
+  if(e.key === 'Enter') renderFeed({search: e.target.value.trim()});
+});
+postText.oninput = function(){
+  const v = postText.value || '';
+  charCount.textContent = `${v.length} / 500`;
+  if(v.length > 500) charCount.style.color='tomato'; else charCount.style.color='';
+};
+
+// refresh button creates demo content
+refreshBtn.onclick = ()=> {
+  createFakeContent();
+  saveState(); render();
+};
+
+// -------------------- Demo/test content generator --------------------
+function createFakeContent(){
+  // Add some users if few
+  if(Object.keys(state.users).length < 4){
+    const names = ['Jamie','Priya','Sam','Maya','Ravi','Zoe'];
+    names.forEach(n=>{
+      const id = 'u_'+uid(5);
+      state.users[id] = {id, name:n, avatar:null, bio:`Hi I'm ${n}`, createdAt: nowISO()};
+    });
+  }
+
+  // create some posts by random users
+  const userIds = Object.keys(state.users);
+  for(let i=0;i<4;i++){
+    const author = userIds[Math.floor(Math.random()*userIds.length)];
+    const textChoices = [
+      "Loving the new features! #productivity #fun",
+      "Sunset walk today. #photography",
+      "Trying out a new recipe — tastes amazing. #food",
+      "Small wins add up. #motivation",
+      "New video dropped! Check it out: https://example.com"
+    ];
+    const text = textChoices[Math.floor(Math.random()*textChoices.length)];
+    const p = {id:'p_'+uid(6), authorId: author, text, tags: parseTags(text), media: [], likes: [], comments: [], createdAt: nowISO()};
+    state.posts.push(p);
+  }
+  // add some follows/likes to show trending
+  const ids = Object.keys(state.posts);
+  if(ids.length){
+    state.posts.forEach((p,i)=>{
+      p.likes = p.likes || [];
+      const rndUser = userIds[Math.floor(Math.random()*userIds.length)];
+      if(!p.likes.includes(rndUser)) p.likes.push(rndUser);
+    });
+  }
+}
+
+// -------------------- Helpers + persistence init --------------------
+function makeInitialDemoIfEmpty(){
+  if(state.posts.length === 0){
+    createFakeContent();
+    saveState();
+  }
+}
+makeInitialDemoIfEmpty();
+render();
+
+// -------------------- Utility: escape window-inserted onclick in tag markup --------------------
+// Because linkifyAndTag injected a click string using filterByTag, we must expose filterByTag on window to be callable from inline onclick
+window.filterByTag = (tag) => { filterByTag(tag); };
+
+// -------------------- small safety functions --------------------
+function closeAllModals(){ closeModal(); }
+
+// -------------------- small fallback rendering tie-ins --------------------
+modalRoot.onclick = (e)=> { if(e.target.id==='modalRoot' || e.target.id==='modalBackdrop') closeModal(); };
+
+// -------------------- initial render update --------------------
+saveState();
+render();
+
+// -------------------- keyboard shortcut: new profile (N) or publish (Ctrl+Enter) --------------------
+document.addEventListener('keydown', e=>{
+  if(e.key === 'N' || e.key === 'n') openProfileModal(null);
+  if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)) publishPost();
+});
+</script>
+</body>
+</html>
